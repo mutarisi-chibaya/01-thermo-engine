@@ -24,6 +24,9 @@ FORMATION = {
     "CO": "C + 1/2 O2 = CO",
     "CO2": "C + O2 = CO2",
     "H2O": "H2 + 1/2 O2 = H2O",
+    "Al2O3": "2 Al + 3/2 O2 = Al2O3",
+    "Cr2O3": "2 Cr + 3/2 O2 = Cr2O3",
+    "SiO2": "Si + O2 = SiO2",
 }
 
 # The NIST alpha-Fe fit error near the Curie point (~0.35 kJ/mol per Fe atom at
@@ -32,6 +35,12 @@ KNOWN = {
     ("FeO", 1000.0): "alpha-Fe fit error at 1000 K (1 Fe): ~0.36 kJ/mol",
     ("Fe3O4", 1000.0): "alpha-Fe fit error at 1000 K (3 Fe): ~1.06 kJ/mol",
     ("Fe2O3", 1000.0): "alpha-Fe fit error at 1000 K (2 Fe): ~0.71 kJ/mol",
+    # Measured 2026-11-04 (causes: see test_reference_data.KNOWN_DEVIATIONS).
+    ("Al2O3", 500.0): "NIST alpha-Al2O3 fit: dfH +0.070 kJ/mol (dfG within 0.01)",
+    ("Cr2O3", 500.0): "NIST Cr2O3 fit (older S298 than JANAF): dfH +0.20, dfG -0.13 kJ/mol",
+    ("Cr2O3", 1000.0): "NIST Cr2O3 fit: dfH +0.24, dfG -0.47 kJ/mol",
+    ("Cr2O3", 1500.0): "NIST Cr2O3 fit: dfH +0.14, dfG -0.79 kJ/mol",
+    ("Cr2O3", 2000.0): "NIST Cr2O3 fit: dfH +0.26, dfG -1.12 kJ/mol",
 }
 
 CSV_PATH = Path(__file__).parent / "data" / "janaf_formation.csv"

@@ -26,6 +26,10 @@ dev = [
     "nbformat",
     "nbclient",
 ]
+demo = [
+    "edge-tts>=6",
+    "playwright>=1.40",
+]
 app = [
     "streamlit>=1.35",
     "plotly>=5.20",
@@ -53,8 +57,10 @@ ignore = ["N802", "N803", "N806", "N815"]
 
 [tool.ruff.lint.per-file-ignores]
 # Display strings use real minus signs, en dashes and subscripts on purpose.
-"app/*" = ["RUF001"]
+"app/*" = ["RUF001", "RUF002"]
 "tests/test_app.py" = ["RUF001"]
+"tests/test_plain.py" = ["RUF001"]
+"demo/*" = ["RUF001"]
 
 [tool.mypy]
 python_version = "3.11"

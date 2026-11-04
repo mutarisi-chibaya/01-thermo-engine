@@ -132,6 +132,118 @@ O2:
     # NIST 'Gas Phase' column 3: Data last reviewed in March, 1977; New parameter fit January 2009
     - {Tmin: 2000.0, Tmax: 6000.0, A: 20.91111, B: 10.72071, C: -2.020498, D: 0.146449, E: 9.245722, F: 5.337651, G: 237.6185, H: 0.0}
 
+Al:
+  formula: Al
+  phase: solid
+  dHf298: 0.0   # kJ/mol, element in its reference state: 0 by definition
+  source: https://webbook.nist.gov/cgi/cbook.cgi?ID=C7429905&Units=SI&Mask=2
+  janaf: https://janaf.nist.gov/tables/Al-001.html
+  ranges:
+    # NIST 'Solid Phase' column 1 (NIST range 298-933 K; EXTENDED by this project by 0.45 K to 933.45 K to meet the next range): Data last reviewed in June, 1983
+    - {Tmin: 298.0, Tmax: 933.45, A: 28.0892, B: -5.414849, C: 8.560423, D: 3.42737, E: -0.277375, F: -9.147187, G: 61.90981, H: 0.0, transition: true}
+    # NIST 'Liquid Phase' column 1: Data last reviewed in June, 1983
+    - {Tmin: 933.45, Tmax: 2790.812, A: 31.75104, B: 3.935826e-08, C: -1.786515e-08, D: 2.694171e-09, E: 5.480037e-09, F: -0.945684, G: 73.39949, H: 10.56201, phase: liquid}
+
+Al2O3:
+  formula: Al2O3
+  phase: solid
+  dHf298: -1675.69   # kJ/mol, NIST ΔfH°solid
+  source: https://webbook.nist.gov/cgi/cbook.cgi?ID=C1344281&Units=SI&Mask=2
+  janaf: https://janaf.nist.gov/tables/Al-101.html
+  ranges:
+    # NIST 'Solid Phase' column 1: α phase; Data last reviewed in December, 1979
+    - {Tmin: 298.0, Tmax: 2327.0, A: 102.429, B: 38.7498, C: -15.9109, D: 2.628181, E: -3.007551, F: -1717.93, G: 146.997, H: -1675.69, phase: alpha, transition: true}
+    # NIST 'Liquid Phase' column 1: Data last reviewed in December, 1979
+    - {Tmin: 2327.0, Tmax: 4000.0, A: 192.464, B: 9.519856e-08, C: -2.858928e-08, D: 2.929147e-09, E: 5.599405e-08, F: -1757.711, G: 177.1008, H: -1620.568, phase: liquid}
+
+Cr:
+  formula: Cr
+  phase: solid
+  dHf298: 0.0   # kJ/mol, element in its reference state: 0 by definition
+  source: https://webbook.nist.gov/cgi/cbook.cgi?ID=C7440473&Units=SI&Mask=2
+  janaf: https://janaf.nist.gov/tables/Cr-001.html
+  ranges:
+    # NIST 'Solid Phase' column 1: Data last reviewed in June, 1973
+    - {Tmin: 298.0, Tmax: 600.0, A: 7.489737, B: 71.50498, C: -91.67562, D: 46.0445, E: 0.138157, F: -4.228643, G: 15.80912, H: 0.0}
+    # NIST 'Solid Phase' column 2: Data last reviewed in June, 1973
+    - {Tmin: 600.0, Tmax: 2130.0, A: 18.46508, B: 5.477986, C: 7.904329, D: -1.147848, E: 1.265791, F: -2.676941, G: 48.09341, H: 0.0, transition: true}
+    # NIST 'Liquid Phase' column 1: Data last reviewed in June, 1973
+    - {Tmin: 2130.0, Tmax: 2952.078, A: 39.33006, B: 0.0, C: 0.0, D: 0.0, E: 0.0, F: 4.784948, G: 67.71093, H: 26.06804, phase: liquid}
+
+Cr2O3:
+  formula: Cr2O3
+  phase: solid
+  dHf298: -1134.7   # kJ/mol, NIST ΔfH°solid
+  source: https://webbook.nist.gov/cgi/cbook.cgi?ID=C1308389&Units=SI&Mask=2
+  janaf: https://janaf.nist.gov/tables/Cr-014.html
+  ranges:
+    # NIST 'Solid Phase' column 1: Data last reviewed in December, 1973
+    - {Tmin: 298.0, Tmax: 305.0, A: -147396.0, B: 711495.0, C: -1111270.0, D: 407561.0, E: 2077.16, F: 27167.1, G: -332949.0, H: -1134.7}
+    # NIST 'Solid Phase' column 2: Data last reviewed in December, 1973
+    - {Tmin: 305.0, Tmax: 2603.0, A: 124.655, B: -0.337045, C: 5.70501, D: -1.05347, E: -2.030501, F: -1178.44, G: 221.33, H: -1134.7, transition: true}
+    # NIST 'Liquid Phase' column 1: Data last reviewed in December, 1973
+    - {Tmin: 2603.0, Tmax: 4500.0, A: 156.9, B: 0.000169, C: -3.5e-05, D: 3e-06, E: 0.000369, F: -1111.58, G: 252.717, H: -1018.38, phase: liquid}
+
+Mn:
+  formula: Mn
+  phase: solid
+  dHf298: 0.0   # kJ/mol, element in its reference state: 0 by definition
+  source: https://webbook.nist.gov/cgi/cbook.cgi?ID=C7439965&Units=SI&Mask=2
+  janaf: https://janaf.nist.gov/tables/Mn-001.html
+  ranges:
+    # NIST 'Solid Phase' column 1: Data last reviewed in September, 1967
+    - {Tmin: 298.0, Tmax: 980.0, A: 27.2419, B: 5.23764, C: 7.78316, D: -2.118501, E: -0.282113, F: -9.366891, G: 61.4964, H: 0.0, phase: alpha, transition: true}
+    # NIST 'Solid Phase' column 2: Data last reviewed in September, 1967
+    - {Tmin: 980.0, Tmax: 1361.0, A: 52.2987, B: -28.6756, C: 21.4867, D: -4.97985, E: -2.43206, F: -21.2433, G: 90.7082, H: 0.0, phase: beta, transition: true}
+    # NIST 'Solid Phase' column 3: Data last reviewed in September, 1967
+    - {Tmin: 1361.0, Tmax: 1412.0, A: 19.0645, B: 31.4134, C: -14.9935, D: 3.214741, E: 1.86709, F: -2.757881, G: 48.789, H: 0.0, phase: gamma, transition: true}
+    # NIST 'Solid Phase' column 4: Data last reviewed in September, 1967
+    - {Tmin: 1412.0, Tmax: 1519.0, A: -534.172, B: 679.053, C: -296.37, D: 46.4266, E: 161.342, F: 468.715, G: -393.539, H: 0.0, phase: delta, transition: true}
+    # NIST 'Liquid Phase' column 1: Data last reviewed in September, 1967
+    - {Tmin: 1519.0, Tmax: 2334.526, A: 46.024, B: 1.953485e-07, C: -7.567225e-08, D: 1.005938e-08, E: 5.623757e-08, F: -7.80404, G: 80.69053, H: 16.28902, phase: liquid}
+
+Ni:
+  formula: Ni
+  phase: solid
+  dHf298: 0.0   # kJ/mol, element in its reference state: 0 by definition
+  source: https://webbook.nist.gov/cgi/cbook.cgi?ID=C7440020&Units=SI&Mask=2
+  janaf: https://janaf.nist.gov/tables/Ni-001.html
+  ranges:
+    # NIST 'Solid Phase' column 1: Data last reviewed in December, 1976
+    - {Tmin: 298.0, Tmax: 600.0, A: 13.6916, B: 82.49509, C: -174.9548, D: 161.6011, E: -0.092417, F: -6.833644, G: 27.669, H: 0.0}
+    # NIST 'Solid Phase' column 2: Data last reviewed in December, 1976
+    - {Tmin: 600.0, Tmax: 700.0, A: 1248.045, B: -1257.51, C: 0.0, D: 0.0, E: -165.1266, F: -788.8263, G: 1212.891, H: 0.0}
+    # NIST 'Solid Phase' column 3: Data last reviewed in December, 1976
+    - {Tmin: 700.0, Tmax: 1728.0, A: 16.49839, B: 18.74913, C: -6.639841, D: 1.717278, E: 1.872051, F: -0.467675, G: 51.67575, H: 0.0, transition: true}
+    # NIST 'Liquid Phase' column 1: Data last reviewed in December, 1976
+    - {Tmin: 1728.0, Tmax: 3156.584, A: 38.91103, B: 0.0, C: 0.0, D: 0.0, E: 0.0, F: -2.72263, G: 74.47143, H: 17.47904, phase: liquid}
+
+Si:
+  formula: Si
+  phase: solid
+  dHf298: 0.0   # kJ/mol, element in its reference state: 0 by definition
+  source: https://webbook.nist.gov/cgi/cbook.cgi?ID=C7440213&Units=SI&Mask=2
+  janaf: https://janaf.nist.gov/tables/Si-001.html
+  ranges:
+    # NIST 'Solid Phase' column 1: Data last reviewed in March, 1967
+    - {Tmin: 298.0, Tmax: 1685.0, A: 22.81719, B: 3.89951, C: -0.082885, D: 0.042111, E: -0.354063, F: -8.163946, G: 43.27846, H: 0.0, transition: true}
+    # NIST 'Liquid Phase' column 1: Data last reviewed in March, 1967
+    - {Tmin: 1685.0, Tmax: 3504.616, A: 27.19604, B: -1.198306e-10, C: 5.353262e-11, D: -6.956612e-12, E: -4.294375e-12, F: 40.36163, G: 77.37178, H: 48.46997, phase: liquid}
+
+SiO2:
+  formula: SiO2
+  phase: solid
+  dHf298: -910.86   # kJ/mol, NIST ΔfH°solid
+  source: https://webbook.nist.gov/cgi/cbook.cgi?ID=C14808607&Units=SI&Mask=2 ; liquid phase fit from https://webbook.nist.gov/cgi/cbook.cgi?ID=C7631869&Units=SI&Mask=2
+  janaf: https://janaf.nist.gov/tables/O-037.html
+  ranges:
+    # NIST 'Solid Phase' column 1: quartz phase; Data last reviewed in June, 1967
+    - {Tmin: 298.0, Tmax: 847.0, A: -6.076591, B: 251.6755, C: -324.7964, D: 168.5604, E: 0.002548, F: -917.6893, G: -27.96962, H: -910.8568, phase: quartz-I, transition: true}
+    # NIST 'Solid Phase' column 2: quartz phase; Data last reviewed in June, 1967
+    - {Tmin: 847.0, Tmax: 1996.0, A: 58.7534, B: 10.27925, C: -0.131384, D: 0.02521, E: 0.025601, F: -929.3292, G: 105.8092, H: -910.8568, phase: quartz-II, transition: true}
+    # NIST 'Liquid Phase' column 1 of page C7631869: Data last reviewed in June, 1967
+    - {Tmin: 1996.0, Tmax: 4500.0, A: 85.772, B: -1.6e-05, C: 4e-06, D: -3.809081e-07, E: -1.7e-05, F: -952.87, G: 113.344, H: -902.661, phase: liquid}
+
 C:
   formula: C
   phase: solid

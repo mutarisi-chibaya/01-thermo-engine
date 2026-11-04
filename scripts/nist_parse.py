@@ -16,7 +16,8 @@ _TABLE = re.compile(r'<table class="data" aria-label="([^"]*)"[^>]*>(.*?)</table
 _ROW = re.compile(r"<tr>\s*<th[^>]*>(.*?)</th>(.*?)</tr>", re.S)
 _CELL = re.compile(r"<td[^>]*>(.*?)</td>", re.S)
 _TAG = re.compile(r"<[^>]+>")
-_SCI = re.compile(r"^(-?[\d.]+)\s*&times;10<sup>([-\d]+)</sup>$")
+# Exponents may carry an explicit sign, e.g. "&times;10<sup>+6</sup>" (Cr2O3 page).
+_SCI = re.compile(r"^(-?[\d.]+)\s*&times;10<sup>([-+]?\d+)</sup>$")
 _RANGE = re.compile(r"^([\d.]+)\s+to\s+([\d.]+)$")
 
 

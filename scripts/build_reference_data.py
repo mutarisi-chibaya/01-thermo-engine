@@ -8,6 +8,19 @@ Every coefficient is read by code from the saved pages in data/raw/nist/ and eve
 reference value from data/raw/janaf/. Nothing is typed by hand. The only choices made
 here are *which* NIST columns to use and, for Fe, the temperatures at which to switch
 between NIST's alpha-delta and gamma fits; those come from the JANAF Fe-003 table.
+
+Further documented choices (added for the Ellingham diagram, project 02):
+- Al: NIST's solid fit ends at 933 K but its liquid fit starts at 933.45 K (the JANAF
+  Al-001 melting point). The solid fit is extended by 0.45 K to close the gap; this is
+  labelled in species.yaml.
+- SiO2: solid fits come from the WebBook *quartz* page (CAS 14808-60-7) and the liquid
+  fit from the generic SiO2 page (CAS 7631-86-9). NIST's quartz fit runs to 1996 K,
+  i.e. metastable quartz above ~1140 K (the stable phases are tridymite, then
+  cristobalite). Reference rows are taken from JANAF O-037 (quartz) at <= 1500 K.
+- Mn, Cr, Ni, Si, Al, Al2O3, Cr2O3: phase changes are marked where JANAF *-001 /
+  table notes list a first-order transition; Cp lambda points (Cr 311.5 K, Ni 631 K,
+  Cr2O3 305 K) are fit boundaries only.
+- MnO and NiO are not included: neither the WebBook nor NIST-JANAF has data for them.
 """
 
 from __future__ import annotations
@@ -45,6 +58,11 @@ class Piece:
     Tmax: float | None = None
     phase: str | None = None
     transition: bool = False
+    # Read this piece from data/raw/nist/<page>.html instead of the recipe's own page.
+    page: str | None = None
+    page_id: str | None = None  # WebBook ID of that page, for the source line
+    # Allow Tmax to exceed NIST's stated Tmax by at most this many K (documented gaps).
+    extend_K: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -129,6 +147,76 @@ RECIPES: tuple[Recipe, ...] = (
         (Piece(GAS, 0), Piece(GAS, 1), Piece(GAS, 2)),
         "O-029", (298.15, 500, 1000, 1500, 2000),
     ),
+    # ---- added for the Ellingham diagram (project 02) ----
+    Recipe(
+        "Al", "Al", "solid", "C7429905", 2, None,
+        (
+            # NIST solid fit ends at 933 K, liquid starts at 933.45 K (JANAF Al-001
+            # melting point): extend the solid fit by 0.45 K to close the gap.
+            Piece(SOLID, 0, Tmax=933.45, extend_K=0.45, transition=True),
+            Piece(LIQUID, 0, phase="liquid"),
+        ),
+        "Al-001", (298.15, 500, 900, 1000, 1500, 2000),
+    ),
+    Recipe(
+        "Al2O3", "Al2O3", "solid", "C1344281", 2, "ΔfH°solid",
+        # Column 1 of the solid table is the alpha (corundum) phase.
+        (Piece(SOLID, 0, phase="alpha", transition=True), Piece(LIQUID, 0, phase="liquid")),
+        "Al-101", (298.15, 500, 1000, 1500, 2000),
+    ),
+    Recipe(
+        "Cr", "Cr", "solid", "C7440473", 2, None,
+        # 311.5 K is a Cp lambda point (JANAF Cr-001), not a first-order change.
+        (Piece(SOLID, 0), Piece(SOLID, 1, transition=True), Piece(LIQUID, 0, phase="liquid")),
+        "Cr-001", (298.15, 500, 1000, 1500, 2000),
+    ),
+    Recipe(
+        "Cr2O3", "Cr2O3", "solid", "C1308389", 2, "ΔfH°solid",
+        # 305 K is a Cp lambda point (JANAF Cr-014): fit boundary only.
+        (Piece(SOLID, 0), Piece(SOLID, 1, transition=True), Piece(LIQUID, 0, phase="liquid")),
+        "Cr-014", (298.15, 500, 1000, 1500, 2000),
+    ),
+    Recipe(
+        "Mn", "Mn", "solid", "C7439965", 2, None,
+        (
+            # JANAF Mn-001: alpha->beta 980 K, beta->gamma 1361 K, gamma->delta 1412 K,
+            # delta->liquid 1519 K; NIST's ranges break at the same temperatures.
+            Piece(SOLID, 0, phase="alpha", transition=True),
+            Piece(SOLID, 1, phase="beta", transition=True),
+            Piece(SOLID, 2, phase="gamma", transition=True),
+            Piece(SOLID, 3, phase="delta", transition=True),
+            Piece(LIQUID, 0, phase="liquid"),
+        ),
+        "Mn-001", (298.15, 500, 1000, 1400, 1500, 2000),
+    ),
+    Recipe(
+        "Ni", "Ni", "solid", "C7440020", 2, None,
+        # 631 K is the Curie (lambda) point (JANAF Ni-001): fit boundaries only.
+        (
+            Piece(SOLID, 0),
+            Piece(SOLID, 1),
+            Piece(SOLID, 2, transition=True),
+            Piece(LIQUID, 0, phase="liquid"),
+        ),
+        "Ni-001", (298.15, 500, 1000, 1500, 2000),
+    ),
+    Recipe(
+        "Si", "Si", "solid", "C7440213", 2, None,
+        (Piece(SOLID, 0, transition=True), Piece(LIQUID, 0, phase="liquid")),
+        "Si-001", (298.15, 500, 1000, 1500, 2000),
+    ),
+    Recipe(
+        "SiO2", "SiO2", "solid", "C14808607", 2, "ΔfH°solid",
+        (
+            # Quartz page: I (alpha) to 847 K, II (beta) to 1996 K (JANAF O-037: I->II
+            # at 847 K). Above ~1140 K this is metastable quartz; see module docstring.
+            Piece(SOLID, 0, phase="quartz-I", transition=True),
+            Piece(SOLID, 1, phase="quartz-II", transition=True),
+            # Liquid fit from the generic SiO2 page (CAS 7631-86-9), from 1996 K.
+            Piece(LIQUID, 0, phase="liquid", page="SiO2_liquid", page_id="C7631869"),
+        ),
+        "O-037", (298.15, 500, 1000, 1500),
+    ),
 )  # fmt: skip
 
 
@@ -152,6 +240,17 @@ def build_species(r: Recipe) -> tuple[list[str], tuple[float, float]]:
         dhf = parse_one_dimensional(page)[r.dhf_quantity]
         dhf_note = f"NIST {r.dhf_quantity}"
     url = WEBBOOK.format(id=r.nist_id, mask=r.mask)
+    for p in r.pieces:
+        if p.page is not None:
+            if p.page_id is None:
+                raise SystemExit(f"{r.key}: piece from page {p.page!r} needs page_id")
+            # No ": " here - it would break the unquoted YAML scalar.
+            url += f" ; {p.table.lower()} fit from {WEBBOOK.format(id=p.page_id, mask=r.mask)}"
+    other_pages = {
+        p.page: parse_shomate_tables(read_source(RAW / "nist" / f"{p.page}.html"))
+        for p in r.pieces
+        if p.page is not None
+    }
 
     lines = [
         f"{r.key}:",
@@ -164,12 +263,14 @@ def build_species(r: Recipe) -> tuple[list[str], tuple[float, float]]:
     ]
     prev_tmax: float | None = None
     for p in r.pieces:
-        col = _table(tables, p.table, r.key).columns[p.column]
+        source_tables = tables if p.page is None else other_pages[p.page]
+        col = _table(source_tables, p.table, r.key).columns[p.column]
         tmin = p.Tmin if p.Tmin is not None else col.Tmin
         tmax = p.Tmax if p.Tmax is not None else col.Tmax
-        if not (col.Tmin <= tmin < tmax <= col.Tmax):
+        if not (col.Tmin <= tmin < tmax <= col.Tmax + p.extend_K):
             raise SystemExit(
                 f"{r.key}: clip {tmin}-{tmax} outside NIST range {col.Tmin}-{col.Tmax}"
+                + (f" (+{p.extend_K} K allowed)" if p.extend_K else "")
             )
         if prev_tmax is not None and tmin != prev_tmax:
             raise SystemExit(f"{r.key}: ranges not contiguous at {prev_tmax}/{tmin}")
@@ -181,12 +282,17 @@ def build_species(r: Recipe) -> tuple[list[str], tuple[float, float]]:
             extra += f", phase: {p.phase}"
         if p.transition:
             extra += ", transition: true"
-        clip = (
-            ""
-            if (tmin, tmax) == (col.Tmin, col.Tmax)
-            else f" (clipped from {col.Tmin:g}-{col.Tmax:g} K)"
-        )
-        lines.append(f"    # NIST '{p.table}' column {p.column + 1}{clip}: {col.comment}")
+        if (tmin, tmax) == (col.Tmin, col.Tmax):
+            clip = ""
+        elif tmax > col.Tmax:
+            clip = (
+                f" (NIST range {col.Tmin:g}-{col.Tmax:g} K; EXTENDED by this project "
+                f"by {tmax - col.Tmax:g} K to {tmax:g} K to meet the next range)"
+            )
+        else:
+            clip = f" (clipped from {col.Tmin:g}-{col.Tmax:g} K)"
+        where = "" if p.page is None else f" of page {p.page_id}"
+        lines.append(f"    # NIST '{p.table}' column {p.column + 1}{where}{clip}: {col.comment}")
         lines.append(f"    - {{Tmin: {_num(tmin)}, Tmax: {_num(tmax)}, {coeffs}{extra}}}")
     first = r.pieces[0]
     t0 = _table(tables, first.table, r.key).columns[first.column].Tmin

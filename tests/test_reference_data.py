@@ -44,6 +44,17 @@ KNOWN_DEVIATIONS: dict[tuple[str, float], str] = {
     # NIST's printed coefficients give H - H298 slightly non-zero at 298.15 K itself.
     ("Fe2O3", 298.15): "NIST coefficients give H-H298(298.15 K) = -0.026 kJ/mol, not 0",
     ("Fe3O4", 298.15): "NIST coefficients give H-H298(298.15 K) = -0.007 kJ/mol, not 0",
+    # Added with the project-02 species; measured 2026-11-04 with the unmodified NIST
+    # coefficients. These NIST fits (reviewed 1967-1979) predate JANAF's 4th edition.
+    ("Al2O3", 298.15): "NIST alpha-Al2O3 fit: Cp -0.27 %, S -0.24 %, H-H298 -0.026 kJ/mol",
+    ("Al2O3", 500.0): "NIST alpha-Al2O3 fit: S +0.12 %, H-H298 +0.066 kJ/mol",
+    ("Cr", 1000.0): "NIST Cr fit Cp +0.33 %",
+    ("Cr", 1500.0): "NIST Cr fit Cp -0.11 %",
+    ("Cr2O3", 298.15): "NIST Cr2O3 S298 80.65 vs JANAF 81.154 J/(mol K) (-0.62 %); "
+    "H-H298(298.15 K) = +0.065 kJ/mol",
+    ("Cr2O3", 2000.0): "NIST Cr2O3 fit Cp -0.22 %",
+    ("Mn", 298.15): "NIST alpha-Mn fit Cp -0.13 %",
+    ("Mn", 500.0): "NIST alpha-Mn fit Cp +0.40 %, H-H298 -0.008 kJ/mol",
 }
 # Fit boundaries (no phase change) where consecutive NIST fits do not join in H.
 # Value: largest jump accepted (kJ/mol), slightly above the observed one.
@@ -51,6 +62,8 @@ KNOWN_JUMPS_KJ: dict[tuple[str, float], float] = {
     ("Fe", 700.0): 0.15,  # observed +0.141
     ("Fe", 1042.0): 0.25,  # observed -0.212 (Curie point)
     ("Fe", 1100.0): 0.40,  # observed -0.365
+    ("Ni", 600.0): 0.20,  # observed -0.164 (near the 631 K Curie point)
+    ("Ni", 700.0): 0.30,  # observed -0.266 (near the 631 K Curie point)
 }
 
 REQUIRED_FORMULAS = {"Fe", "FeO", "Fe3O4", "Fe2O3", "C", "CO", "CO2", "H2", "H2O", "O2"}

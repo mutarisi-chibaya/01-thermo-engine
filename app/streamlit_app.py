@@ -4,7 +4,9 @@ Run from the 01-thermo-engine folder:
 
     streamlit run app/streamlit_app.py
 
-Temperatures are entered and computed in K; degC is shown alongside for reading.
+Serves two audiences at once: a plain-language summary first, the specialist numbers
+(ΔH°, ΔS°, ΔG°, log K, Cp, S, G) alongside. Temperatures are computed in K; the user
+chooses °C or K for display.
 """
 
 from __future__ import annotations
@@ -16,6 +18,20 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from app.plain import (
+    ASSUMPTIONS,
+    BASIC_PROPERTIES,
+    CUSTOM,
+    GLOSSARY,
+    PRESETS,
+    PROPERTY_HELP,
+    Unit,
+    describe_reaction,
+    fmt_T,
+    from_display,
+    heat_per_tonne_kwh,
+    to_display,
+)
 from pyrothermo import (
     FormulaError,
     Reaction,
@@ -29,27 +45,46 @@ from pyrothermo import (
     parse_formula,
 )
 
-FAKE_YAML = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "fake_species.yaml"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEMO_VIDEO = PROJECT_ROOT / "demo" / "output" / "pyrothermo_demo.mp4"
 
 # Categorical slots in fixed order (validated reference palette); max 4 series per chart.
 SERIES_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
 MAX_SERIES = len(SERIES_COLORS)
 N_POINTS = 400
+DEFAULT_T_K = 1273.15  # 1000 °C
 
 PROPERTIES: dict[str, tuple[str, str, float]] = {
     # label: (Species method, unit, display scale from SI)
-    "Cp": ("cp", "J/(mol·K)", 1.0),
-    "H − H298": ("h_minus_h298", "kJ/mol", 1e-3),
-    "H (formation scale)": ("h", "kJ/mol", 1e-3),
-    "S": ("s", "J/(mol·K)", 1.0),
-    "G = H − TS": ("g", "kJ/mol", 1e-3),
+    "Heat needed from 25 °C (H − H298)": ("h_minus_h298", "kJ/mol", 1e-3),
+    "Heat capacity (Cp)": ("cp", "J/(mol·K)", 1.0),
+    "Entropy (S)": ("s", "J/(mol·K)", 1.0),
+    "Gibbs energy (G = H − TS)": ("g", "kJ/mol", 1e-3),
+    "Enthalpy, formation scale (H)": ("h", "kJ/mol", 1e-3),
 }
+
+
+def display_path(p: Path) -> str:
+    """Path relative to the project folder for display (absolute if outside it)."""
+    try:
+        return p.resolve().relative_to(PROJECT_ROOT).as_posix()
+    except ValueError:
+        return str(p)
+
+
+def resolve_path(text: str) -> Path:
+    """Interpret a user-entered path; relative paths are relative to the project folder."""
+    p = Path(text.strip())
+    return p if p.is_absolute() else PROJECT_ROOT / p
 
 
 @st.cache_resource(show_spinner=False)
 def _load(path: str, mtime: float) -> dict[str, Species]:
     # mtime is part of the cache key so edits to the YAML are picked up.
     return load_species(path)
+
+
+# ---------------------------------------------------------------- tables & charts
 
 
 def species_table(species: list[Species], prop: str, T: np.ndarray) -> pd.DataFrame:
@@ -69,22 +104,44 @@ def species_table(species: list[Species], prop: str, T: np.ndarray) -> pd.DataFr
     return pd.concat(frames, ignore_index=True)
 
 
-def _base_layout(fig: go.Figure, y_title: str) -> go.Figure:
+def _base_layout(fig: go.Figure, y_title: str, unit: Unit) -> go.Figure:
     fig.update_layout(
-        xaxis_title="Temperature (K)",
+        xaxis_title=f"Temperature ({unit})",
         yaxis_title=y_title,
         hovermode="x unified",
         margin={"l": 10, "r": 10, "t": 30, "b": 10},
         legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 0},
-        height=420,
+        height=400,
     )
     fig.update_xaxes(showgrid=False)
     return fig
 
 
-def species_figure(species: list[Species], prop: str, T: np.ndarray) -> go.Figure:
-    """Line chart of one property vs T, with phase changes marked by dotted lines."""
-    method, unit, scale = PROPERTIES[prop]
+def mark_transitions(
+    fig: go.Figure, items: list[tuple[float, str]], lo: float, hi: float, unit: Unit
+) -> None:
+    """Dotted vertical line per phase-change temperature (K) in [lo, hi], one vertical label.
+
+    Labels at the same temperature are merged so they never stack on top of each other.
+    """
+    grouped: dict[float, list[str]] = {}
+    for Tt, label in items:
+        if lo <= Tt <= hi and label not in grouped.setdefault(Tt, []):
+            grouped[Tt].append(label)
+    for Tt, labels in sorted(grouped.items()):
+        fig.add_vline(
+            x=float(to_display(Tt, unit)),
+            line={"width": 1, "dash": "dot", "color": "gray"},
+            annotation_text=" / ".join(labels),
+            annotation_textangle=-90,
+            annotation_position="bottom left",
+            annotation_font={"size": 10, "color": "gray"},
+        )
+
+
+def species_figure(species: list[Species], prop: str, T: np.ndarray, unit: Unit = "K") -> go.Figure:
+    """Line chart of one property vs T (K in, ``unit`` on the axis), phase changes marked."""
+    method, punit, scale = PROPERTIES[prop]
     fig = go.Figure()
     for i, sp in enumerate(species):
         mask = (sp.t_min <= T) & (sp.t_max >= T)
@@ -100,36 +157,36 @@ def species_figure(species: list[Species], prop: str, T: np.ndarray) -> go.Figur
                 y = np.insert(y, k, np.nan)
         fig.add_trace(
             go.Scatter(
-                x=Tm,
+                x=to_display(Tm, unit),
                 y=y,
-                customdata=Tm - 273.15,
                 mode="lines",
                 name=sp.name,
                 line={"width": 2, "color": SERIES_COLORS[i]},
-                hovertemplate=f"{sp.name}: %{{y:.3f}} {unit}<extra></extra>",
+                hovertemplate=f"{sp.name}: %{{y:.3f}} {punit}<extra></extra>",
             )
         )
-        for Tt, below, above in sp.phase_transitions():
-            if T[0] <= Tt <= T[-1]:
-                fig.add_vline(
-                    x=Tt,
-                    line={"width": 1, "dash": "dot", "color": "gray"},
-                    annotation_text=f"{sp.name}: {below}→{above} ({Tt:g} K)",
-                    annotation_font_size=11,
-                )
-    return _base_layout(fig, f"{prop} ({unit})")
+    transitions = [
+        (Tt, f"{sp.name} {below}→{above}")
+        for sp in species
+        for Tt, below, above in sp.phase_transitions()
+    ]
+    mark_transitions(fig, transitions, float(T[0]), float(T[-1]), unit)
+    return _base_layout(fig, f"{prop.split(' (')[0]} ({punit})", unit)
 
 
-def reaction_figure(rx: Reaction, T: np.ndarray, which: str) -> go.Figure:
-    """ΔG (kJ/mol) or log10 K vs T for a reaction, as a single-axis line chart."""
-    if which == "dG":
-        y, title = np.asarray(rx.dG(T)) / 1000.0, "ΔG° (kJ/mol of reaction)"
-    else:
-        y, title = np.asarray(rx.log10K(T)), "log₁₀ K"
+def reaction_figure(
+    rx: Reaction, T: np.ndarray, which: str, unit: Unit = "K", mark_T: float | None = None
+) -> go.Figure:
+    """ΔG° (kJ/mol) or log10 K vs T (K in) as a single-axis line chart, with a T marker."""
+    title = "ΔG° (kJ/mol of reaction)" if which == "dG" else "log₁₀ K"
+
+    def fn(t: np.ndarray) -> np.ndarray:
+        return np.asarray(rx.dG(t)) / 1000.0 if which == "dG" else np.asarray(rx.log10K(t))
+
     fig = go.Figure(
         go.Scatter(
-            x=T,
-            y=y,
+            x=to_display(T, unit),
+            y=fn(T),
             mode="lines",
             name=title,
             line={"width": 2, "color": SERIES_COLORS[0]},
@@ -137,69 +194,105 @@ def reaction_figure(rx: Reaction, T: np.ndarray, which: str) -> go.Figure:
         )
     )
     fig.add_hline(y=0, line={"width": 1, "color": "gray"})
-    for Tt, name, below, above in rx.phase_transitions():
-        fig.add_vline(
-            x=Tt,
-            line={"width": 1, "dash": "dot", "color": "gray"},
-            annotation_text=f"{name}: {below}→{above}",
-            annotation_font_size=11,
-        )
-    fig.update_layout(showlegend=False)
-    return _base_layout(fig, title)
-
-
-def _t_slider(label: str, lo: float, hi: float, key: str) -> tuple[float, float]:
-    t0, t1 = st.slider(
-        label,
-        min_value=float(lo),
-        max_value=float(hi),
-        value=(float(lo), float(hi)),
-        step=1.0,
-        key=key,
-    )
-    st.caption(f"{t0:g}–{t1:g} K  =  {t0 - 273.15:.0f}–{t1 - 273.15:.0f} °C")
-    return t0, t1
-
-
-def species_tab(db: dict[str, Species]) -> None:
-    names = sorted(db)
-    chosen = st.multiselect(
-        f"Species (up to {MAX_SERIES})",
-        names,
-        default=names[:1],
-        max_selections=MAX_SERIES,
-    )
-    prop = st.radio("Property", list(PROPERTIES), horizontal=True)
-    if not chosen:
-        st.info("Pick at least one species.")
-        return
-    sel = [db[n] for n in chosen]
-    lo, hi = min(s.t_min for s in sel), max(s.t_max for s in sel)
-    t0, t1 = _t_slider("Temperature range (K)", lo, hi, "sp_T")
-    T = np.linspace(t0, t1, N_POINTS)
-    st.plotly_chart(species_figure(sel, prop, T), width="stretch")
-
-    with st.expander("Data table, sources and ranges"):
-        df = species_table(sel, prop, T)
-        st.dataframe(df, width="stretch", hide_index=True)
-        st.download_button("Download CSV", df.to_csv(index=False), "species_properties.csv")
-        for sp in sel:
-            spans = ", ".join(f"{r.Tmin:g}–{r.Tmax:g}" for r in sp.ranges)
-            st.markdown(
-                f"**{sp.name}** ({sp.formula}, {sp.molar_mass * 1000:.3f} g/mol): "
-                f"ranges {spans} K · ΔfH°298 = {sp.data.dHf298:g} kJ/mol · source: {sp.data.source}"
+    if mark_T is not None and T[0] <= mark_T <= T[-1]:
+        fig.add_trace(
+            go.Scatter(
+                x=to_display([mark_T], unit),
+                y=fn(np.array([mark_T])),
+                mode="markers",
+                name="chosen temperature",
+                marker={
+                    "size": 10,
+                    "color": SERIES_COLORS[0],
+                    "line": {"width": 2, "color": "white"},
+                },
+                hoverinfo="skip",
             )
+        )
+    transitions = [(Tt, f"{n} {b}→{a}") for Tt, n, b, a in rx.phase_transitions()]
+    mark_transitions(fig, transitions, float(T[0]), float(T[-1]), unit)
+    fig.update_layout(showlegend=False)
+    return _base_layout(fig, title, unit)
 
 
-def reaction_tab(db: dict[str, Species]) -> None:
-    st.caption(
-        "Write coefficients before names and put spaces around '+', e.g. "
-        "`2 Fe + O2 = 2 FeO` or `Fe2O3 + 3 CO = 2 Fe + 3 CO2`. "
-        f"Available species: {', '.join(sorted(db))}"
+# ---------------------------------------------------------------- inputs
+
+
+def _t_range_slider(label: str, lo: float, hi: float, unit: Unit, key: str) -> tuple[float, float]:
+    """Range slider in the display unit; returns (lo, hi) in K."""
+    dlo, dhi = float(to_display(lo, unit)), float(to_display(hi, unit))
+    a, b = st.slider(
+        label, min_value=dlo, max_value=dhi, value=(dlo, dhi), step=1.0, key=f"{key}_{unit}"
     )
-    eq = st.text_input("Reaction", value="", key="reaction_eq")
-    if not eq.strip():
-        return
+    return from_display(a, unit), from_display(b, unit)
+
+
+def _t_input(label: str, lo: float, hi: float, unit: Unit, key: str) -> float:
+    """Single temperature in the display unit, clipped to [lo, hi] K; returns K."""
+    default = min(max(DEFAULT_T_K, lo), hi)
+    value = st.number_input(
+        f"{label} ({unit})",
+        min_value=float(to_display(lo, unit)),
+        max_value=float(to_display(hi, unit)),
+        value=float(to_display(default, unit)),
+        step=10.0,
+        key=f"{key}_{unit}",
+    )
+    return from_display(float(value), unit)
+
+
+# ---------------------------------------------------------------- tabs
+
+
+def start_tab() -> None:
+    st.markdown(
+        """
+### What this app does
+It answers **"can this reaction happen, and under what conditions?"** for iron- and
+steelmaking reactions, using published thermodynamic data (NIST). Each answer comes in
+two forms: **a plain-language summary** first, and **the specialist numbers** next to it.
+
+### Try it in three steps
+1. Open **Reactions** and pick *"Reduce wüstite (FeO) to iron with hydrogen"*.
+2. Set the **temperature** (try 1000 °C). Read the **In plain language** box: it tells you
+   whether the reaction goes forward, where it turns around, and **how much hydrogen the gas
+   needs** for it to work.
+3. Scroll down to the charts: below the zero line the reaction runs forward.
+   Specialists will find ΔH°, ΔS°, ΔG° and log K beside the summary.
+
+The **Substances** tab shows how a material behaves when heated, including the energy to
+heat one tonne. **Molar mass** converts a formula into g/mol.
+
+### What it cannot tell you
+"""
+        + ASSUMPTIONS
+        + """ Use it for "is this possible, and roughly where?", not for plant design.
+"""
+    )
+    if DEMO_VIDEO.is_file():
+        with st.expander("Watch the 3-minute demo video"):
+            st.video(str(DEMO_VIDEO))
+    with st.expander("Glossary of terms"):
+        for term, text in GLOSSARY.items():
+            st.markdown(f"**{term}** — {text}")
+
+
+def reaction_tab(db: dict[str, Species], unit: Unit) -> None:
+    available = [p for p in PRESETS if all(n in db for n in _names(p.equation))]
+    labels = [p.label for p in available] + [CUSTOM]
+    choice = st.selectbox("Reaction", labels, key="preset")
+    if choice == CUSTOM:
+        st.caption(
+            "Write coefficients before names and put spaces around '+', e.g. "
+            f"`2 Fe + O2 = 2 FeO`. Available species: {', '.join(sorted(db))}"
+        )
+        eq = st.text_input("Reaction equation", value="", key="reaction_eq")
+        if not eq.strip():
+            return
+    else:
+        preset = available[labels.index(choice)]
+        eq = preset.equation
+        st.caption(f"`{eq}` — {preset.note}")
     try:
         rx = Reaction.from_string(eq, db)
     except (ReactionError, FormulaError) as exc:
@@ -209,27 +302,41 @@ def reaction_tab(db: dict[str, Species]) -> None:
     if lo >= hi:
         st.error("The species in this reaction have no common temperature range.")
         return
-    st.success(f"Balanced: {rx}  ·  valid {lo:g}–{hi:g} K")
+    st.success(f"Balanced: {rx}  ·  data valid {fmt_T(lo, unit)} to {fmt_T(hi, unit)}")
 
-    t0, t1 = _t_slider("Temperature range (K)", lo, hi, "rx_T")
+    Tq = _t_input("Temperature", lo, hi, unit, "rx_T")
+
+    left, right = st.columns([3, 2], gap="large")
+    with left:
+        st.subheader("In plain language")
+        for line in describe_reaction(rx, Tq, unit):
+            st.markdown(f"- {line}")
+        st.caption(ASSUMPTIONS)
+    with right:
+        st.subheader("For specialists")
+        m1, m2 = st.columns(2)
+        m1.metric("ΔH° (kJ/mol)", f"{rx.dH(Tq) / 1000:.2f}")
+        m2.metric("ΔS° (J/mol·K)", f"{rx.dS(Tq):.2f}")
+        m3, m4 = st.columns(2)
+        m3.metric("ΔG° (kJ/mol)", f"{rx.dG(Tq) / 1000:.2f}")
+        m4.metric("log₁₀ K", f"{rx.log10K(Tq):.3f}")
+        st.caption(
+            f"At {fmt_T(Tq, unit)}. Standard states: pure condensed phases, each gas at 1 bar."
+        )
+
+    st.subheader("How it changes with temperature")
+    t0, t1 = _t_range_slider("Chart temperature range", lo, hi, unit, "rx_range")
     T = np.linspace(t0, t1, N_POINTS)
     c1, c2 = st.columns(2)
-    c1.plotly_chart(reaction_figure(rx, T, "dG"), width="stretch")
-    c2.plotly_chart(reaction_figure(rx, T, "logK"), width="stretch")
-
-    st.subheader("At a single temperature")
-    Tq = st.number_input(
-        "T (K)", min_value=float(lo), max_value=float(hi), value=float(min(max(1273.15, lo), hi))
-    )
-    m = st.columns(4)
-    m[0].metric("ΔH° (kJ/mol)", f"{rx.dH(Tq) / 1000:.2f}")
-    m[1].metric("ΔS° (J/mol·K)", f"{rx.dS(Tq):.2f}")
-    m[2].metric("ΔG° (kJ/mol)", f"{rx.dG(Tq) / 1000:.2f}")
-    m[3].metric("log₁₀ K", f"{rx.log10K(Tq):.3f}")
-    st.caption(
-        f"T = {Tq:g} K = {Tq - 273.15:.1f} °C. "
-        "Standard states: pure condensed phases, ideal gases at 1 bar."
-    )
+    with c1:
+        st.plotly_chart(reaction_figure(rx, T, "dG", unit, Tq), width="stretch")
+        st.caption(
+            "Below the zero line the reaction runs forward; above it, backwards. "
+            "The dot is your chosen temperature."
+        )
+    with c2:
+        st.plotly_chart(reaction_figure(rx, T, "logK", unit, Tq), width="stretch")
+        st.caption("log₁₀ K above 0 means products are favoured; each step of 1 is a factor of 10.")
 
     with st.expander("Data table"):
         df = pd.DataFrame(
@@ -244,6 +351,68 @@ def reaction_tab(db: dict[str, Species]) -> None:
         )
         st.dataframe(df, width="stretch", hide_index=True)
         st.download_button("Download CSV", df.to_csv(index=False), "reaction.csv")
+
+
+def _names(equation: str) -> list[str]:
+    out = []
+    for side in equation.replace("->", "=").split("="):
+        for term in side.split(" + "):
+            out.append(term.strip().split()[-1])
+    return out
+
+
+def species_tab(db: dict[str, Species], unit: Unit) -> None:
+    names = sorted(db)
+    chosen = st.multiselect(
+        f"Substances (up to {MAX_SERIES})",
+        names,
+        default=["Fe"] if "Fe" in names else names[:1],
+        max_selections=MAX_SERIES,
+    )
+    if not chosen:
+        st.info("Pick at least one substance.")
+        return
+    sel = [db[n] for n in chosen]
+    lo, hi = min(s.t_min for s in sel), max(s.t_max for s in sel)
+
+    st.subheader("Energy to heat one tonne")
+    Tq = _t_input("Heat up to", max(lo, 298.15), hi, unit, "sp_T")
+    cols = st.columns(len(sel))
+    for col, sp in zip(cols, sel, strict=True):
+        if sp.t_min <= Tq <= sp.t_max and sp.t_min <= 298.15:
+            kwh = heat_per_tonne_kwh(sp, Tq)
+            col.metric(
+                f"{sp.name}: 25 °C → {fmt_T(Tq, unit).split(' (')[0]}",
+                f"{kwh:,.0f} kWh/t",
+                f"{kwh * 3.6e-3:.2f} GJ/t",
+                delta_color="off",
+            )
+        else:
+            col.metric(sp.name, "—", "outside data range", delta_color="off")
+    st.caption(
+        "Theoretical minimum heat (sensible heat plus any melting or phase-change heat), with "
+        "no furnace losses. Gases are taken as starting as gas at 25 °C."
+    )
+
+    st.subheader("Properties against temperature")
+    advanced = st.toggle("Show advanced properties (entropy, Gibbs energy, enthalpy)", key="adv")
+    options = list(PROPERTIES) if advanced else list(BASIC_PROPERTIES)
+    prop = st.radio("Property", options, horizontal=True, key=f"prop_{advanced}")
+    t0, t1 = _t_range_slider("Chart temperature range", lo, hi, unit, "sp_range")
+    T = np.linspace(t0, t1, N_POINTS)
+    st.plotly_chart(species_figure(sel, prop, T, unit), width="stretch")
+    st.caption(PROPERTY_HELP[prop] + " Dotted lines mark phase changes.")
+
+    with st.expander("Data table, sources and ranges"):
+        df = species_table(sel, prop, T)
+        st.dataframe(df, width="stretch", hide_index=True)
+        st.download_button("Download CSV", df.to_csv(index=False), "species_properties.csv")
+        for sp in sel:
+            spans = ", ".join(f"{r.Tmin:g}–{r.Tmax:g}" for r in sp.ranges)
+            st.markdown(
+                f"**{sp.name}** ({sp.formula}, {sp.molar_mass * 1000:.3f} g/mol): "
+                f"ranges {spans} K · ΔfH°298 = {sp.data.dHf298:g} kJ/mol · source: {sp.data.source}"
+            )
 
 
 def formula_tab() -> None:
@@ -267,36 +436,42 @@ def formula_tab() -> None:
 def main() -> None:
     st.set_page_config(page_title="pyrothermo", layout="wide")
     st.title("pyrothermo")
-    st.caption("Thermochemistry from NIST Shomate coefficients · SI units internally")
+    st.caption(
+        "Iron- and steelmaking thermodynamics from NIST data · "
+        "plain-language answers and specialist numbers"
+    )
 
     with st.sidebar:
-        st.header("Data")
-        path_text = st.text_input("species.yaml", value=str(default_data_path()), key="data_path")
-        demo = st.toggle("Use FAKE test data (demo only)", value=False, key="demo")
+        st.header("Settings")
+        unit: Unit = st.radio("Temperature unit", ["°C", "K"], horizontal=True, key="unit")
+        with st.expander("Data file"):
+            path_text = st.text_input(
+                "species.yaml", value=display_path(default_data_path()), key="data_path"
+            )
         with st.expander("Limitations"):
             st.markdown(
-                "- Pure species in standard states; gases ideal at 1 bar.\n"
-                "- No solutions, slags or activities; no kinetics.\n"
-                "- Accuracy is that of the NIST Shomate fits; no extrapolation "
-                "outside each species' listed ranges."
+                "- Pure substances in standard states; gases ideal, 1 bar.\n"
+                "- No solutions, slags or activities; no kinetics; no heat losses.\n"
+                "- Accuracy is that of the NIST fits (documented in the README); no "
+                "extrapolation outside each substance's data range."
             )
 
-    path = FAKE_YAML if demo else Path(path_text)
-    if demo:
-        st.warning("Showing FAKE coefficients from tests/fixtures. Numbers are meaningless.")
+    path = resolve_path(path_text)
     try:
         db = _load(str(path), path.stat().st_mtime if path.is_file() else 0.0)
     except SpeciesDataError as exc:
-        st.error(str(exc))
-        st.info("Fill in data/species.yaml from the NIST WebBook, or turn on the demo toggle.")
+        st.error(str(exc).replace(str(path), display_path(path)))
+        st.info("Build the data with scripts/build_reference_data.py (see README).")
         return
 
-    t1, t2, t3 = st.tabs(["Species", "Reaction", "Molar mass"])
+    t0, t1, t2, t3 = st.tabs(["Start here", "Reactions", "Substances", "Molar mass"])
     try:
+        with t0:
+            start_tab()
         with t1:
-            species_tab(db)
+            reaction_tab(db, unit)
         with t2:
-            reaction_tab(db)
+            species_tab(db, unit)
         with t3:
             formula_tab()
     except TemperatureRangeError as exc:

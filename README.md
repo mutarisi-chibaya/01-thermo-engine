@@ -36,14 +36,35 @@ The build script only decides which NIST columns to use. For Fe it also sets whe
 These coefficients are this project's fit, not NIST's, and `species.yaml` says so. Graphite is checked against the same table it was fitted to, so that check measures the quality of the fit (better than 0.07 %), not independent agreement.
 
 ### Validation against JANAF
-55 reference rows at temperatures from 298.15 to 3000 K: 48 agree within 0.1 % in Cp, S and H − H298. The other 7 are deviations in the NIST fits themselves. They are listed with reasons in `tests/test_reference_data.py`, as expected failures:
+96 reference rows at temperatures from 298.15 to 3000 K: 81 agree within 0.1 % in Cp, S and H − H298. The other 15 are deviations in the NIST fits themselves. They are listed with reasons in `tests/test_reference_data.py`, as expected failures:
 
 - **Fe at 1000 and 1100 K (α-iron near the Curie point, 1042 K):** the NIST fits don't join up in H, by up to 0.37 kJ/mol. S at 1100 K is 0.5 % off.
 - **Fe at 1700 and 1800 K (δ-iron):** Cp is 0.14–0.23 % high.
 - **Fe2O3 at 500 K:** Cp is 0.11 % low.
 - **Fe2O3 and Fe3O4 at 298.15 K:** the rounded NIST coefficients give H − H298 = −0.026 and −0.007 kJ/mol at 298.15 K, where it should be exactly 0.
+- **Species added for project 02:**
+  - Al2O3 at 298.15 and 500 K: up to 0.27 % off.
+  - Cr at 1000 and 1500 K: Cp up to 0.33 % off.
+  - Cr2O3 at 298.15 K: NIST's S°298 is 80.65 J/(mol·K), against JANAF's 81.154.
+  - Cr2O3 at 2000 K: Cp is 0.22 % low.
+  - Mn at 298.15 and 500 K: Cp up to 0.40 % off.
 
-**Reactions:** the formation ΔH° and ΔG° of FeO, Fe3O4, Fe2O3, CO, CO2 and H2O, calculated from the elements, were compared with JANAF's tabulated values in 24 rows from 500 to 2000 K. 21 agree within 0.05 kJ/mol, most within 0.01 kJ/mol. The 3 exceptions are the iron oxides at 1000 K, where the α-Fe fit error carries through at about 0.35 kJ/mol per Fe atom (`tests/test_formation.py`).
+  These NIST fits were last reviewed between 1967 and 1979, before JANAF's 4th edition.
+
+**Reactions:** the formation ΔH° and ΔG° of FeO, Fe3O4, Fe2O3, CO, CO2, H2O, Al2O3, Cr2O3 and SiO2, calculated from the elements, were compared with JANAF's tabulated values in 35 rows from 500 to 2000 K. 27 agree within 0.05 kJ/mol, most within 0.01 kJ/mol. The 8 exceptions (`tests/test_formation.py`):
+
+- **Iron oxides at 1000 K:** the α-Fe fit error carries through at about 0.35 kJ/mol per Fe atom.
+- **Al2O3 at 500 K:** ΔfH° is 0.07 kJ/mol off.
+- **Cr2O3:** ΔfG° drifts from −0.13 kJ/mol at 500 K to −1.12 kJ/mol at 2000 K, because of the older S°298.
+
+### Species added for the Ellingham diagram (project 02)
+
+Al, Al2O3, Cr, Cr2O3, Mn, Ni, Si and SiO2 come through the same fetch and build scripts. The build script records these choices:
+
+- **Al:** NIST's solid fit ends at 933 K, but its liquid fit starts at 933.45 K. The solid fit is **extended by 0.45 K** to JANAF's melting point, and `species.yaml` labels this.
+- **SiO2:** the solid fits come from the WebBook quartz page; the liquid fit comes from the generic SiO2 page. NIST's quartz fit runs to 1996 K, so above about 1140 K it describes metastable quartz rather than tridymite or cristobalite.
+- **Phase changes:** first-order transitions are marked from the JANAF notes (Mn α/β/γ/δ, and the melting points). The magnetic λ-points (Cr 311.5 K, Ni 631 K, Cr2O3 305 K) are fit boundaries only. Ni's fits jump by up to 0.27 kJ/mol near its Curie point; this is listed in `KNOWN_JUMPS_KJ`.
+- **MnO and NiO are not included:** neither the NIST WebBook nor NIST-JANAF has data for them.
 
 ## Usage
 
@@ -65,13 +86,31 @@ Temperatures are always in K. Results are in SI units (J, mol, K). Both scalars 
 streamlit run app/streamlit_app.py
 ```
 
-The app has three tabs:
+The app is written for two audiences at once. Each result is given first in plain language, and the specialist numbers appear next to it. Temperatures can be shown in °C or K; there's a switch in the sidebar.
 
-- **Species:** Cp, H − H298, H, S and G against T, with phase changes marked.
-- **Reaction:** ΔG° and log₁₀ K against T, plus values at a single temperature.
+- **Start here:** a short tutorial, a glossary, what the tool can't tell you, and the demo video.
+- **Reactions:** pick a preset ironmaking reaction or type your own, then choose a temperature. The **In plain language** box says:
+  - whether the reaction goes forward
+  - where it reverses (its turning point)
+  - for gas reductions, the minimum share of reducing gas needed. For example, FeO + H2 needs more than about 76 % H2 at 1000 °C.
+  - for reactions with a single gas, the limiting partial pressure
+
+  Alongside are ΔH°, ΔS°, ΔG° and log₁₀ K, plus charts against temperature.
+- **Substances:** the theoretical energy to heat one tonne of a material from 25 °C (including melting), and its properties against temperature. Entropy, Gibbs energy and absolute enthalpy are behind an "advanced properties" switch.
 - **Molar mass:** composition and molar mass of a formula.
 
-Before real data exists, a sidebar toggle shows the clearly labelled **fake** test data so you can try the interface.
+The plain-language statements are calculated from ΔG°, ΔH° and K (`src/pyrothermo/interpret.py`, `app/plain.py`); none are written by hand for a particular reaction. They assume pure solids, ideal gases and equilibrium, and the app says so.
+
+## Demo video
+
+[`demo/output/pyrothermo_demo.mp4`](demo/output/pyrothermo_demo.mp4) is a 2 minute 28 second narrated walkthrough of the interface (1920×1080). To regenerate it:
+
+```powershell
+pip install -e ".[app,demo]"; playwright install chromium   # ffmpeg must be on PATH
+.\.venv\Scripts\python.exe demo/make_demo.py
+```
+
+The script drives the app in a headless browser and records it. The narration uses Microsoft's online `en-ZA-LukeNeural` voice through `edge-tts`, so the script text is sent to that service.
 
 ## Conventions
 
