@@ -127,3 +127,20 @@ def test_app_without_data_shows_instructions(tmp_path: Path) -> None:
     at.text_input(key="data_path").set_value(str(tmp_path / "missing.yaml")).run()
     assert not at.exception
     assert any("not found" in e.value for e in at.error)
+
+
+def test_app_imports_when_started_like_streamlit_cli(tmp_path: Path) -> None:
+    """`streamlit run` adds only app/ to sys.path; the app must still import."""
+    import subprocess
+    import sys
+
+    code = (
+        "import runpy, sys; sys.path[:] = [p for p in sys.path if p not in ('', '.')]; "
+        f"sys.path.insert(0, {str(Path(APP).parent)!r}); "
+        f"runpy.run_path({APP!r}, run_name='not_main')"
+    )
+    result = subprocess.run(
+        [sys.executable, "-I", "-c", code], cwd=tmp_path, capture_output=True, text=True
+    )
+    assert "No module named" not in result.stderr, result.stderr
+    assert result.returncode == 0, result.stderr

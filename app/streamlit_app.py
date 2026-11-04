@@ -11,14 +11,21 @@ chooses °C or K for display.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
-import plotly.graph_objects as go
-import streamlit as st
+# `streamlit run app/streamlit_app.py` puts only app/ on sys.path; add the project folder
+# so `app.plain` imports however the app is started.
+_PROJECT = str(Path(__file__).resolve().parents[1])
+if _PROJECT not in sys.path:
+    sys.path.insert(0, _PROJECT)
 
-from app.plain import (
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+import plotly.graph_objects as go  # noqa: E402
+import streamlit as st  # noqa: E402
+
+from app.plain import (  # noqa: E402
     ASSUMPTIONS,
     BASIC_PROPERTIES,
     CUSTOM,
@@ -32,7 +39,7 @@ from app.plain import (
     heat_per_tonne_kwh,
     to_display,
 )
-from pyrothermo import (
+from pyrothermo import (  # noqa: E402
     FormulaError,
     Reaction,
     ReactionError,
