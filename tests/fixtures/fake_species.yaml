@@ -1,0 +1,44 @@
+# !!! FAKE DATA - FOR TESTING CODE LOGIC ONLY !!!
+# These coefficients are made up so that results have simple closed forms
+# (constant Cp => H - H298 = A (t - 0.29815) kJ/mol, S = A ln t + G).
+# They are NOT real thermodynamic data and must never be used for calculations.
+# Real data lives in data/species.yaml (filled in by hand from NIST).
+
+Fe:
+  formula: Fe
+  phase: solid
+  dHf298: 0.0
+  source: fake-test-data
+  ranges:
+    # Cp = 25; F chosen so H - H298 = 0 at 298.15 K.
+    - {Tmin: 298, Tmax: 1000, A: 25, B: 0, C: 0, D: 0, E: 0, F: -7.45375, G: 30, H: 0,
+       transition: true}
+    # "liquid": Cp = 40, with a 10 kJ/mol jump in H at 1000 K.
+    - {Tmin: 1000, Tmax: 2000, A: 40, B: 0, C: 0, D: 0, E: 0, F: -12.45375, G: 40, H: 12,
+       phase: liquid}
+
+O2:
+  formula: O2
+  phase: gas
+  dHf298: 0.0
+  source: fake-test-data
+  ranges:
+    # Two ranges that meet continuously at 1000 K (same coefficients).
+    - {Tmin: 298, Tmax: 1000, A: 30, B: 0, C: 0, D: 0, E: 0, F: -8.9445, G: 205, H: 0}
+    - {Tmin: 1000, Tmax: 3000, A: 30, B: 0, C: 0, D: 0, E: 0, F: -8.9445, G: 205, H: 0}
+
+FeO:
+  formula: FeO
+  phase: solid
+  dHf298: -270.0
+  source: fake-test-data
+  ranges:
+    - {Tmin: 298, Tmax: 2000, A: 50, B: 0, C: 0, D: 0, E: 0, F: -284.9075, G: 60, H: -270}
+
+CO:
+  formula: CO
+  phase: gas
+  dHf298: "-110e0"   # numeric string on purpose: PyYAML reads 1e-3-style values as strings
+  source: fake-test-data
+  ranges:
+    - {Tmin: 298, Tmax: 2000, A: 29, B: 0, C: 0, D: 0, E: 0, F: -118.64635, G: 197, H: -110}
